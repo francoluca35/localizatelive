@@ -1,0 +1,179 @@
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { FaMapMarkerAlt, FaRegCopy } from "react-icons/fa";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+function MoverMapa({ position }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView(position, 15);
+  }, [position, map]);
+  return null;
+}
+
+const CustomMarkerIcon = () =>
+  L.divIcon({
+    className: "",
+    html: `<div style="color:red; font-size: 32px;">📍</div>`,
+    iconSize: [30, 42],
+    iconAnchor: [15, 42],
+  });
+
+export default function Go() {
+  const [position, setPosition] = useState(null);
+  const [info, setInfo] = useState({
+    lat: "",
+    lon: "",
+    city: "",
+    address: "",
+    time: "",
+  });
+
+  const [activo, setActivo] = useState(
+    () => localStorage.getItem("ubicacionActiva") === "true"
+  );
+
+  useEffect(() => {
+    let watchId;
+
+    if (activo) {
+      watchId = navigator.geolocation.watchPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const now = new Date().toLocaleString("es-AR");
+
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+            );
+            const data = await res.json();
+            const calle =
+              address.road && address.house_number
+                ? `${address.road} ${address.house_number}`
+                : address.road ||
+                  address.neighbourhood ||
+                  address.suburb ||
+                  "Sin calle";
+
+            const address = data.address;
+            const city =
+              address.city ||
+              address.town ||
+              address.village ||
+              address.hamlet ||
+              address.suburb ||
+              address.county ||
+              address.state_district ||
+              address.state ||
+              "Desconocido";
+
+            const direccionCompleta = `${calle}, ${ciudad}`;
+
+            const displayAddress = data.display_name || "No disponible";
+
+            setPosition([latitude, longitude]);
+            setInfo({
+              lat: latitude.toFixed(6),
+              lon: longitude.toFixed(6),
+              city,
+              address: direccionCompleta,
+              time: now,
+            });
+          } catch (err) {
+            console.error("Error obteniendo ciudad:", err);
+          }
+        },
+        (err) => {
+          console.error("Error al obtener ubicación:", err);
+          alert("No se pudo acceder a tu ubicación.");
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [activo]);
+
+  const activarUbicacion = () => {
+    setActivo(true);
+    localStorage.setItem("ubicacionActiva", "true");
+  };
+
+  const desactivarUbicacion = () => {
+    setActivo(false);
+    localStorage.setItem("ubicacionActiva", "false");
+    setPosition(null);
+    setInfo({ lat: "", lon: "", city: "", address: "", time: "" });
+  };
+
+  const copiarDireccion = () => {
+    if (info.address) {
+      navigator.clipboard.writeText(info.address);
+      alert("📋 Dirección copiada al portapapeles.");
+    }
+  };
+
+  return (
+    <div className="h-screen relative">
+      <MapContainer
+        center={[-34.6, -58.38]}
+        zoom={13}
+        scrollWheelZoom
+        className="h-full w-full z-0"
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {position && (
+          <>
+            <Marker position={position} icon={CustomMarkerIcon()}>
+              <Popup>Estás acá</Popup>
+            </Marker>
+            <MoverMapa position={position} />
+          </>
+        )}
+      </MapContainer>
+
+      <div className="absolute top-4 right-4 bg-white bg-opacity-90 text-black p-4 rounded-lg shadow-md w-72 text-sm z-10">
+        {!activo ? (
+          <button
+            onClick={activarUbicacion}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mb-2"
+          >
+            Activar ubicación
+          </button>
+        ) : (
+          <>
+            <p>
+              <strong>Latitud:</strong> {info.lat}
+            </p>
+            <p>
+              <strong>Longitud:</strong> {info.lon}
+            </p>
+            <p>
+              <strong>Localidad:</strong> {info.city}
+            </p>
+            <p className="flex items-center gap-2">
+              <strong>Dirección:</strong>
+              <button onClick={copiarDireccion} title="Copiar">
+                <FaRegCopy className="text-blue-600 hover:text-blue-800 cursor-pointer" />
+              </button>
+            </p>
+            <p className="text-xs">{info.address}</p>
+            <p>
+              <strong>Fecha/Hora:</strong> {info.time}
+            </p>
+
+            <button
+              onClick={desactivarUbicacion}
+              className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white py-2 rounded"
+            >
+              Desactivar ubicación
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
