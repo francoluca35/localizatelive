@@ -33,3 +33,5 @@
 1. Clona este repositorio:
    ```bash
    git clone https://github.com/francoluca35/localizatelive.git
+   cd localizatelive
+   npm install
