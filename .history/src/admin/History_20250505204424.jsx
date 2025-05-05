@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+// Ícono personalizado tipo "📍"
 const customIcon = L.divIcon({
   className: "",
   html: `<div style="color:red; font-size: 24px;">📍</div>`,

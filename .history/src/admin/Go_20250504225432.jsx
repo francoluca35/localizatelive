@@ -36,21 +36,10 @@ export default function Go() {
   const intervalRef = useRef(null);
 
   const guardarUbicacion = async () => {
-    if (!info.lat || !info.lon) return;
-
-    const usuario = JSON.parse(localStorage.getItem("adminUser"));
-
+    if (!info.lat || !info.lon || !info.username) return;
     try {
-      await axios.post("http://localhost:4000/api/ubicaciones", {
-        lat: info.lat,
-        lon: info.lon,
-        city: info.city,
-        address: info.address,
-        time: info.time,
-        usuarioLogeado: usuario?.username || "desconocido",
-      });
-
-      console.log("Ubicación guardada con usuarioLogeado");
+      await axios.post("http://localhost:4000/api/ubicaciones", info);
+      console.log("Ubicación guardada con usuario:", info.username);
     } catch (err) {
       console.error("Error al guardar ubicación:", err);
     }

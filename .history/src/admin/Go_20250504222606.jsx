@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { FaMapMarkerAlt } from "react-icons/fa";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
@@ -28,7 +29,6 @@ export default function Go() {
     city: "",
     address: "",
     time: "",
-    username: "",
   });
   const [activo, setActivo] = useState(
     () => localStorage.getItem("ubicacionActiva") === "true"
@@ -38,29 +38,24 @@ export default function Go() {
   const guardarUbicacion = async () => {
     if (!info.lat || !info.lon) return;
 
-    const usuario = JSON.parse(localStorage.getItem("adminUser"));
+    const user = JSON.parse(localStorage.getItem("adminUser"));
 
     try {
       await axios.post("http://localhost:4000/api/ubicaciones", {
-        lat: info.lat,
-        lon: info.lon,
-        city: info.city,
-        address: info.address,
-        time: info.time,
-        usuarioLogeado: usuario?.username || "desconocido",
+        ...info,
+        username: user?.username || "desconocido",
       });
-
-      console.log("Ubicación guardada con usuarioLogeado");
+      console.log("Ubicación guardada");
     } catch (err) {
       console.error("Error al guardar ubicación:", err);
     }
   };
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("adminUser"));
+    let watchId;
 
-    if (activo && user?.username) {
-      let watchId = navigator.geolocation.watchPosition(
+    if (activo) {
+      watchId = navigator.geolocation.watchPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
           const now = new Date().toLocaleString("es-AR");
@@ -72,6 +67,7 @@ export default function Go() {
             const data = await res.json();
 
             const address = data.address;
+
             const calle =
               address.road && address.house_number
                 ? `${address.road} ${address.house_number}`
@@ -97,13 +93,14 @@ export default function Go() {
                 ? `${calle}, ${ciudad}`
                 : data.display_name;
 
+            const user = JSON.parse(localStorage.getItem("adminUser"));
+
             const nuevaInfo = {
               lat: latitude.toFixed(6),
               lon: longitude.toFixed(6),
               city: ciudad,
               address: direccionCompleta,
               time: now,
-              username: user.username,
             };
 
             setPosition([latitude, longitude]);
@@ -122,12 +119,12 @@ export default function Go() {
       intervalRef.current = setInterval(() => {
         guardarUbicacion();
       }, 30 * 60 * 1000); // cada 30 minutos
-
-      return () => {
-        navigator.geolocation.clearWatch(watchId);
-        clearInterval(intervalRef.current);
-      };
     }
+
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [activo]);
 
   const activarUbicacion = () => {
@@ -139,15 +136,8 @@ export default function Go() {
     setActivo(false);
     localStorage.setItem("ubicacionActiva", "false");
     setPosition(null);
-    setInfo({
-      lat: "",
-      lon: "",
-      city: "",
-      address: "",
-      time: "",
-      username: "",
-    });
-    clearInterval(intervalRef.current);
+    setInfo({ lat: "", lon: "", city: "", address: "", time: "" });
+    if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
   return (
@@ -193,9 +183,6 @@ export default function Go() {
             </p>
             <p>
               <strong>Fecha/Hora:</strong> {info.time}
-            </p>
-            <p>
-              <strong>Usuario:</strong> {info.username}
             </p>
 
             <div className="flex flex-col gap-2">
