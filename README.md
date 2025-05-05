@@ -1,4 +1,4 @@
-# 🌍 LocalizaLive
+# 🌍 LocalizateLive
 
 **LocalizaLive** es una aplicación web en tiempo real que permite a los usuarios **registrarse, iniciar sesión y guardar automáticamente sus ubicaciones geográficas**, generando un **historial privado** que puede visualizarse en un mapa interactivo.
 
