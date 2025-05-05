@@ -22,6 +22,7 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ error: "Usuario requerido" });
     }
 
+    // Buscar coincidencias exactas (insensible a mayúsculas/minúsculas)
     const ubicaciones = await Ubicacion.find({
       usuarioLogeado: { $regex: new RegExp(`^${usuarioLogeado}$`, "i") },
     }).sort({ time: -1 });

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const ubicacionSchema = new mongoose.Schema({
   lat: String,
@@ -9,7 +9,4 @@ const ubicacionSchema = new mongoose.Schema({
   usuarioLogeado: String,
 });
 
-const Ubicacion =
-  mongoose.models.Ubicacion || mongoose.model("Ubicacion", ubicacionSchema);
-
-export default Ubicacion;
+module.exports = mongoose.model("Ubicacion", ubicacionSchema);

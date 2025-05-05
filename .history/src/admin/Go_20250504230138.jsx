@@ -47,7 +47,7 @@ export default function Go() {
         city: info.city,
         address: info.address,
         time: info.time,
-        usuarioLogeado: usuario?.username || "desconocido",
+        usuarioLogeado: usuario?.username || "desconocido", // 👈 CORRECTO
       });
 
       console.log("Ubicación guardada con usuarioLogeado");

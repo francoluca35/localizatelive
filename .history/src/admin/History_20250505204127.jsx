@@ -1,20 +1,13 @@
 import { useState } from "react";
 import useUbicaciones from "../hooks/useUbicaciones";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
-const customIcon = L.divIcon({
-  className: "",
-  html: `<div style="color:red; font-size: 24px;">📍</div>`,
-  iconSize: [30, 42],
-  iconAnchor: [15, 42],
-});
+import { MapContainer, Popup, TileLayer } from "react-leaflet";
+import { Marker } from "pigeon-maps";
+import { icon } from "leaflet";
 
 export default function History() {
   const { ubicaciones, loading, error } = useUbicaciones();
   const [expandida, setExpandida] = useState(null);
-
+  const [position, setPosition] = useState(null);
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">Historial de Localizaciones</h2>
@@ -63,15 +56,11 @@ export default function History() {
                 <MapContainer
                   center={[parseFloat(ubi.lat), parseFloat(ubi.lon)]}
                   zoom={15}
-                  scrollWheelZoom
                   className="w-full h-full"
                 >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Marker
-                    position={[parseFloat(ubi.lat), parseFloat(ubi.lon)]}
-                    icon={customIcon}
-                  >
-                    <Popup>Ubicación guardada</Popup>
+                  <Marker position={position} icon={CustomMarkerIcon()}>
+                    <Popup>Estás acá</Popup>
                   </Marker>
                 </MapContainer>
               </div>

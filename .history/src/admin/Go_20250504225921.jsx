@@ -47,10 +47,10 @@ export default function Go() {
         city: info.city,
         address: info.address,
         time: info.time,
-        usuarioLogeado: usuario?.username || "desconocido",
+        username: usuario?.username || "desconocido", // ✅ este campo llegará al backend como usuarioLogeado
       });
 
-      console.log("Ubicación guardada con usuarioLogeado");
+      console.log("Ubicación guardada");
     } catch (err) {
       console.error("Error al guardar ubicación:", err);
     }

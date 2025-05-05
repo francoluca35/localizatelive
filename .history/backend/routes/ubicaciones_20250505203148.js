@@ -17,15 +17,9 @@ router.post("/", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const { usuarioLogeado } = req.query;
-
-    if (!usuarioLogeado) {
-      return res.status(400).json({ error: "Usuario requerido" });
-    }
-
-    const ubicaciones = await Ubicacion.find({
-      usuarioLogeado: { $regex: new RegExp(`^${usuarioLogeado}$`, "i") },
-    }).sort({ time: -1 });
-
+    const ubicaciones = await Ubicacion.find({ usuarioLogeado }).sort({
+      time: -1,
+    });
     res.json(ubicaciones);
   } catch (err) {
     res.status(500).json({ error: "Error al obtener historial" });
