@@ -1,24 +1,17 @@
-import { useEffect, useState, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import axios from "axios";
 
-function MoverMapa({ position }) {
-  const map = useMap();
-  useEffect(() => {
-    if (position) map.setView(position, 15);
-  }, [position, map]);
-  return null;
-}
+const containerStyle = {
+  width: "100%",
+  height: "100vh",
+};
 
-const CustomMarkerIcon = () =>
-  L.divIcon({
-    className: "custom-icon",
-    html: `<div style="color:red; font-size: 32px;">📍</div>`,
-    iconSize: [30, 42],
-    iconAnchor: [15, 42],
-  });
+const defaultCenter = {
+  lat: -34.6,
+  lng: -58.38,
+};
 
 export default function Go() {
   const [position, setPosition] = useState(null);
@@ -29,11 +22,17 @@ export default function Go() {
     address: "",
     time: "",
     username: "",
+    houseNumber: "",
   });
   const [activo, setActivo] = useState(
     () => localStorage.getItem("ubicacionActiva") === "true"
   );
   const intervalRef = useRef(null);
+  const mapRef = useRef(null);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  });
 
   const guardarUbicacion = async () => {
     if (!info.lat || !info.lon) return;
@@ -46,11 +45,12 @@ export default function Go() {
         lon: info.lon,
         city: info.city,
         address: info.address,
+        houseNumber: info.houseNumber,
         time: info.time,
         usuarioLogeado: usuario?.username || "desconocido",
       });
 
-      console.log("Ubicación guardada con usuarioLogeado");
+      console.log("Ubicación guardada");
     } catch (err) {
       console.error("Error al guardar ubicación:", err);
     }
@@ -60,42 +60,38 @@ export default function Go() {
     const user = JSON.parse(localStorage.getItem("adminUser"));
 
     if (activo && user?.username) {
-      let watchId = navigator.geolocation.watchPosition(
+      const watchId = navigator.geolocation.watchPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
           const now = new Date().toLocaleString("es-AR");
 
           try {
             const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
             );
             const data = await res.json();
 
-            const address = data.address;
-            const calle =
-              address.road && address.house_number
-                ? `${address.road} ${address.house_number}`
-                : address.road ||
-                  address.neighbourhood ||
-                  address.suburb ||
-                  address.village ||
-                  address.city ||
-                  "Desconocido";
+            if (!data.results || data.results.length === 0)
+              throw new Error("No se encontraron resultados");
+
+            const result = data.results[0];
+            const components = result.address_components;
+
+            const getComponent = (type) =>
+              components.find((c) => c.types.includes(type))?.long_name || "";
+
+            const numeroCasa =
+              getComponent("street_number") ||
+              result.formatted_address.match(/\\b\\d{1,5}\\b/)?.[0] ||
+              "";
 
             const ciudad =
-              address.city ||
-              address.town ||
-              address.village ||
-              address.municipality ||
-              address.county ||
-              address.state_district ||
-              address.state ||
+              getComponent("locality") ||
+              getComponent("administrative_area_level_2") ||
+              getComponent("administrative_area_level_1") ||
               "Desconocido";
 
-            const direccionCompleta =
-              calle !== "Desconocido"
-                ? `${calle}, ${ciudad}`
-                : data.display_name;
+            const direccionCompleta = result.formatted_address;
 
             const nuevaInfo = {
               lat: latitude.toFixed(6),
@@ -104,16 +100,21 @@ export default function Go() {
               address: direccionCompleta,
               time: now,
               username: user.username,
+              houseNumber: numeroCasa,
             };
 
-            setPosition([latitude, longitude]);
+            setPosition({ lat: latitude, lng: longitude });
             setInfo(nuevaInfo);
+
+            if (mapRef.current) {
+              mapRef.current.panTo({ lat: latitude, lng: longitude });
+            }
           } catch (err) {
             console.error("Error obteniendo dirección:", err);
           }
         },
         (err) => {
-          console.error("Error al obtener ubicación:", err);
+          console.error("Error geolocalización:", err);
           alert("No se pudo acceder a tu ubicación.");
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -121,7 +122,7 @@ export default function Go() {
 
       intervalRef.current = setInterval(() => {
         guardarUbicacion();
-      }, 30 * 60 * 1000); // cada 30 minutos
+      }, 30 * 60 * 1000);
 
       return () => {
         navigator.geolocation.clearWatch(watchId);
@@ -146,30 +147,25 @@ export default function Go() {
       address: "",
       time: "",
       username: "",
+      houseNumber: "",
     });
     clearInterval(intervalRef.current);
   };
 
-  return (
-    <div className="h-screen relative">
-      <MapContainer
-        center={[-34.6, -58.38]}
-        zoom={13}
-        scrollWheelZoom
-        className="h-full w-full z-0"
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {position && (
-          <>
-            <Marker position={position} icon={CustomMarkerIcon()}>
-              <Popup>Estás acá</Popup>
-            </Marker>
-            <MoverMapa position={position} />
-          </>
-        )}
-      </MapContainer>
+  if (!isLoaded) return <div className="text-white p-6">Cargando mapa...</div>;
 
-      <div className="absolute top-4 right-4 bg-white bg-opacity-90 text-black p-4 rounded-lg shadow-md w-72 text-sm z-10">
+  return (
+    <div className="relative h-screen">
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={position || defaultCenter}
+        zoom={15}
+        onLoad={(map) => (mapRef.current = map)}
+      >
+        {position && <Marker position={position} />}
+      </GoogleMap>
+
+      <div className="absolute top-4 right-4 bg-white/90 text-black p-4 rounded-lg shadow-lg w-80 text-sm z-10">
         {!activo ? (
           <button
             onClick={activarUbicacion}
@@ -192,22 +188,25 @@ export default function Go() {
               <strong>Dirección:</strong> {info.address}
             </p>
             <p>
+              <strong>Número de casa:</strong>{" "}
+              {info.houseNumber || "No disponible"}
+            </p>
+            <p>
               <strong>Fecha/Hora:</strong> {info.time}
             </p>
             <p>
               <strong>Usuario:</strong> {info.username}
             </p>
-
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 mt-3">
               <button
                 onClick={guardarUbicacion}
-                className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded"
               >
                 Guardar manualmente
               </button>
               <button
                 onClick={desactivarUbicacion}
-                className="w-full mt-2 bg-red-600 hover:bg-red-700 text-white py-2 rounded"
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded"
               >
                 Desactivar ubicación
               </button>
